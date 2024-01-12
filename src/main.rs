@@ -13,29 +13,46 @@ fn list_files() {
 }
 
 fn get_input(prompt: &str) -> String {
-    let close_prompt = " Use ctrl-c to quit";
+    let close_prompt = " Use ctrl-c to quit: ";
     let new_prompt = prompt.to_owned() + close_prompt;
     let mut answer = String::new();
-    println!("{}", new_prompt);
+    print!("{}", new_prompt);
     let _ = stdout().flush();
     let _ = stdin().read_line(&mut answer);
 
     return answer;
 }
 
-fn read_log_lines(path: &Path) {
+fn read_log_lines(path: &Path) -> String {
     let lines = std::fs::read_to_string(path).unwrap_or("Error reading file.".to_string());
+    /*
     for line in lines.lines() {
         println!("{}", line);
     }
+    */
+    return lines
+}
+
+fn search_logs_for_deploy_job(lines: String, job_id: &str)  -> Vec<String>{
+    let mut filtered_lines: Vec<String> = Vec::new();
+    for line in lines.lines() {
+        //println!("{}", line);
+        if line.contains(job_id) {
+            filtered_lines.push(line.to_string());
+            println!("{}", line);
+        }
+    }
+    return filtered_lines;
 }
 
 fn main() {
-    //println!("Hello, world!");
     //list_files();
-    let p = "This is a test.";
+    let p = "Enter the deploy job ID.";
     let input = get_input(p);
-    println!("{}", input);
+    //println!("{}", input);
     let path = Path::new(SOFTWARE_MANAGEMENT_LOG);
-    read_log_lines(path);
+    let lines = read_log_lines(path);
+    println!("{}", "Is it getting here?");
+    let filtered = search_logs_for_deploy_job(lines, &input.trim()); 
+    println!("{}", filtered.len());
 }
