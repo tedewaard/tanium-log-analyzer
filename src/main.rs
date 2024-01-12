@@ -1,9 +1,10 @@
-use std::{path::Path, io::stdin, io::{stdout, Stdout, Write}, fs};
+use std::{path::Path, io::stdin, io::{stdout, Stdout, Write}, fs, collections::HashSet};
+use regex::Regex;
 
 
 const BASE_PATH: &str = "C:/Program Files (x86)/Tanium/Tanium Client";
 const SOFTWARE_MANAGEMENT_LOG: &str = "C:/Program Files (x86)/Tanium/Tanium Client/Tools/SoftwareManagement/logs/software-management.log";
-
+const TEST_LOG: &str = "C:/Program Files (x86)/Tanium/Tanium Client/Tools/SoftwareManagement/logs/software-management.log.1";
 
 fn list_files() {
     let path = Path::new(BASE_PATH); 
@@ -45,14 +46,38 @@ fn search_logs_for_deploy_job(lines: String, job_id: &str)  -> Vec<String>{
     return filtered_lines;
 }
 
+fn get_selfservice_install_ids(lines: String) -> Vec<usize>{
+    let mut set = HashSet::new();
+    let mut filtered_lines: Vec<usize> = Vec::new();
+    let re = Regex::new(r"EUSS Deploy (\d+)\b").unwrap();
+    for line in lines.lines() {
+        //println!("{}", line);
+        if line.contains("EUSS Deploy") {
+            let num = re.captures(line);
+            if num.is_some() {
+                //let id_string = num.unwrap()[1].to_string();
+                //println!("{}", id_string);
+                let id = num.unwrap()[1].trim().parse::<usize>().unwrap();
+                set.insert(id);
+            }
+        }
+    }
+    for id in set {
+        filtered_lines.push(id);
+    }
+    return filtered_lines;
+}
+
 fn main() {
     //list_files();
     let p = "Enter the deploy job ID.";
-    let input = get_input(p);
+    //let input = get_input(p);
     //println!("{}", input);
-    let path = Path::new(SOFTWARE_MANAGEMENT_LOG);
+    let path = Path::new(TEST_LOG);
     let lines = read_log_lines(path);
-    println!("{}", "Is it getting here?");
-    let filtered = search_logs_for_deploy_job(lines, &input.trim()); 
-    println!("{}", filtered.len());
+    //let filtered = search_logs_for_deploy_job(lines, &input.trim()); 
+    //println!("{}", filtered.len());
+    let self_service_jobs = get_selfservice_install_ids(lines);
+    println!("{:?}", self_service_jobs);
+
 }
