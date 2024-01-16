@@ -46,38 +46,50 @@ fn search_logs_for_deploy_job(lines: String, job_id: &str)  -> Vec<String>{
     return filtered_lines;
 }
 
-fn get_selfservice_install_ids(lines: String) -> Vec<usize>{
-    let mut set = HashSet::new();
-    let mut filtered_lines: Vec<usize> = Vec::new();
-    let re = Regex::new(r"EUSS Deploy (\d+)\b").unwrap();
+fn search_logs_for_ss_job(lines: String, ss_id: &str)  -> Vec<String>{
+    let mut filtered_lines: Vec<String> = Vec::new();
     for line in lines.lines() {
         //println!("{}", line);
-        if line.contains("EUSS Deploy") {
-            let num = re.captures(line);
-            if num.is_some() {
-                //let id_string = num.unwrap()[1].to_string();
-                //println!("{}", id_string);
-                let id = num.unwrap()[1].trim().parse::<usize>().unwrap();
-                set.insert(id);
-            }
+        if line.contains(ss_id) {
+            filtered_lines.push(line.to_string());
+            println!("{}", line);
         }
-    }
-    for id in set {
-        filtered_lines.push(id);
     }
     return filtered_lines;
 }
 
+//TODO: Return tuple with ID and SS Package Name
+fn get_selfservice_install_ids(lines: String) -> Vec<(usize, String)>{
+    let mut set = HashSet::new();
+    let mut ss_ids: Vec<(usize, String)> = Vec::new();
+    //let re = Regex::new(r"EUSS Deploy (\d+)\b").unwrap();
+    let re = Regex::new(r"\[EUSS Deploy (\d+) \((.+?)\)\]").unwrap();
+    let filtered_lines = lines.lines().filter(|x| x.contains("EUSS Deploy")).collect::<Vec<&str>>();
+    for line in filtered_lines {
+        //println!("{}", line);
+        let num = re.captures(line);
+        if num.is_some() {
+            let id = num.as_ref().unwrap()[1].trim().parse::<usize>().unwrap();
+            let name = num.unwrap()[2].trim().to_string();
+            set.insert((id, name));
+        }
+    }
+    for id in set {
+        ss_ids.push(id);
+    }
+    return ss_ids;
+}
+
 fn main() {
     //list_files();
-    let p = "Enter the deploy job ID.";
-    //let input = get_input(p);
-    //println!("{}", input);
-    let path = Path::new(TEST_LOG);
+    //let job_ID = get_input("Enter the deploy job ID.");
+    //println!("{}", job_ID);
+    //let path = Path::new(TEST_LOG);
+    let path = Path::new(SOFTWARE_MANAGEMENT_LOG);
     let lines = read_log_lines(path);
-    //let filtered = search_logs_for_deploy_job(lines, &input.trim()); 
+    //let filtered = search_logs_for_deploy_job(lines, &job_ID.trim()); 
     //println!("{}", filtered.len());
     let self_service_jobs = get_selfservice_install_ids(lines);
+    //let self_service_id = get_input("Which Self Service Install would you like to see lines for?");
     println!("{:?}", self_service_jobs);
-
 }
