@@ -1,4 +1,4 @@
-use std::{path::Path, io::stdin, io::{stdout, Stdout, Write}, fs, collections::HashSet};
+use std::{path::Path, io::stdin, io::{stdout, Write}, fs, collections::HashSet};
 use regex::Regex;
 
 
@@ -34,23 +34,21 @@ fn read_log_lines(path: &Path) -> String {
     return lines
 }
 
-fn search_logs_for_deploy_job(lines: String, job_id: &str)  -> Vec<String>{
+fn search_logs_for_job_id(lines: &String, id: &str, id_list: &Vec<(usize, &str)>)  -> Vec<String>{
     let mut filtered_lines: Vec<String> = Vec::new();
-    for line in lines.lines() {
-        //println!("{}", line);
-        if line.contains(job_id) {
-            filtered_lines.push(line.to_string());
-            println!("{}", line);
+    let mut job_type = "";
+    for i in id_list {
+        if i.0.to_string() == id {
+           job_type = i.1; 
         }
     }
-    return filtered_lines;
-}
-
-fn search_logs_for_ss_job(lines: String, ss_id: &str)  -> Vec<String>{
-    let mut filtered_lines: Vec<String> = Vec::new();
+    let search_string = match job_type {
+        "S" => "EUSS Deploy ".to_owned() + id,
+        "D" => "Deploy ".to_owned() + id,
+        _ => panic!("Error with job type")
+    };
     for line in lines.lines() {
-        //println!("{}", line);
-        if line.contains(ss_id) {
+        if line.contains(&search_string) {
             filtered_lines.push(line.to_string());
             println!("{}", line);
         }
@@ -59,7 +57,7 @@ fn search_logs_for_ss_job(lines: String, ss_id: &str)  -> Vec<String>{
 }
 
 //TODO: Return tuple with ID and SS Package Name
-fn get_selfservice_install_ids(lines: String) -> Vec<(usize, String)>{
+fn get_selfservice_install_ids(lines: &String, id_list: &mut Vec<(usize, &str)>) -> Vec<(usize, String)>{
     let mut set = HashSet::new();
     let mut ss_ids: Vec<(usize, String)> = Vec::new();
     //let re = Regex::new(r"EUSS Deploy (\d+)\b").unwrap();
@@ -75,9 +73,38 @@ fn get_selfservice_install_ids(lines: String) -> Vec<(usize, String)>{
         }
     }
     for id in set {
-        ss_ids.push(id);
+        ss_ids.push(id.clone());
+        id_list.push((id.0, "S"));
     }
     return ss_ids;
+}
+
+fn get_deploy_install_ids(lines: &String, id_list: &mut Vec<(usize, &str)>) -> Vec<(usize, String)>{
+    let mut set = HashSet::new();
+    let mut ss_ids: Vec<(usize, String)> = Vec::new();
+    //let re = Regex::new(r"EUSS Deploy (\d+)\b").unwrap();
+    let re = Regex::new(r"\[Deploy (\d+) \((.+?)\)\]").unwrap();
+    let filtered_lines = lines.lines().filter(|x| x.contains("[Deploy")).collect::<Vec<&str>>();
+    for line in filtered_lines {
+        //println!("{}", line);
+        let num = re.captures(line);
+        if num.is_some() {
+            let id = num.as_ref().unwrap()[1].trim().parse::<usize>().unwrap();
+            let name = num.unwrap()[2].trim().to_string();
+            set.insert((id, name));
+        }
+    }
+    for id in set {
+        ss_ids.push(id.clone());
+        id_list.push((id.0, "D"));
+    }
+    return ss_ids;
+}
+
+fn pretty_print_ids(ids: Vec<(usize, String)>){
+    for id in ids {
+        println!("{} - {}", id.0, id.1);
+    }
 }
 
 fn main() {
@@ -89,7 +116,14 @@ fn main() {
     let lines = read_log_lines(path);
     //let filtered = search_logs_for_deploy_job(lines, &job_ID.trim()); 
     //println!("{}", filtered.len());
-    let self_service_jobs = get_selfservice_install_ids(lines);
+    let mut id_list: Vec<(usize, &str)> = Vec::new();
+    let self_service_jobs = get_selfservice_install_ids(&lines, &mut id_list);
+    let deploy_service_jobs = get_deploy_install_ids(&lines, &mut id_list);
     //let self_service_id = get_input("Which Self Service Install would you like to see lines for?");
-    println!("{:?}", self_service_jobs);
+    println!("{}", "Self Service Jobs:");
+    pretty_print_ids(self_service_jobs);
+    println!("{}", "\nDeploy Jobs:");
+    pretty_print_ids(deploy_service_jobs);
+    let job_id = get_input("Enter the job ID you want to see logs for.");
+    search_logs_for_job_id(&lines, &job_id.trim(), &id_list);
 }

@@ -1,3 +1,5 @@
+#### TODO
+ - Allow passing of file or file path to executable
 #### Tanium Directory - Windows
 C:\Program Files (x86)\Tanium\Tanium Client
 
