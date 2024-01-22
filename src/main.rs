@@ -1,22 +1,24 @@
-use std::{path::Path, io::stdin, io::{stdout, Write}, fs, collections::HashSet};
+use std::{path::Path, io::stdin, io::{stdout, Write}, collections::HashSet};
 use regex::Regex;
 
 
-const BASE_PATH: &str = "C:/Program Files (x86)/Tanium/Tanium Client";
+//const BASE_PATH: &str = "C:/Program Files (x86)/Tanium/Tanium Client";
 const SOFTWARE_MANAGEMENT_LOG: &str = "C:/Program Files (x86)/Tanium/Tanium Client/Tools/SoftwareManagement/logs/software-management.log";
-const TEST_LOG: &str = "C:/Program Files (x86)/Tanium/Tanium Client/Tools/SoftwareManagement/logs/software-management.log.1";
+//const TEST_LOG: &str = "C:/Program Files (x86)/Tanium/Tanium Client/Tools/SoftwareManagement/logs/software-management.log.1";
 
 enum JobType {
     SelfService,
     Deploy
 }
 
+/*
 fn list_files() {
     let path = Path::new(BASE_PATH); 
     for file in fs::read_dir(path).unwrap() {
         println!("{}", file.unwrap().path().display());
     };
 }
+*/
 
 fn get_input(prompt: &str) -> String {
     let close_prompt = " Use ctrl-c to quit: ";
@@ -31,11 +33,6 @@ fn get_input(prompt: &str) -> String {
 
 fn read_log_lines(path: &Path) -> String {
     let lines = std::fs::read_to_string(path).unwrap_or("Error reading file.".to_string());
-    /*
-    for line in lines.lines() {
-        println!("{}", line);
-    }
-    */
     return lines
 }
 
@@ -54,13 +51,13 @@ fn search_logs_for_job_id(lines: &String, id: &str, id_list: &Vec<(usize, &JobTy
     for line in lines.lines() {
         if line.contains(&search_string) {
             filtered_lines.push(line.to_string());
-            println!("{}", line);
+            //println!("{}", line);
         }
     }
     return filtered_lines;
 }
 
-//TODO: Return tuple with ID and SS Package Name
+//TODO: Convert Deploy and SS ID lookup into single function
 fn get_selfservice_install_ids(lines: &String, id_list: &mut Vec<(usize, &JobType)>) -> Vec<(usize, String)>{
     let mut set = HashSet::new();
     let mut ss_ids: Vec<(usize, String)> = Vec::new();
@@ -110,24 +107,35 @@ fn pretty_print_ids(ids: Vec<(usize, String)>){
         println!("{} - {}", id.0, id.1);
     }
 }
+fn pretty_print_logs(logs: Vec<String>){
+    for line in logs {
+        println!("{}", line);
+    }
+}
 
+fn filter_ss_logs(logs: Vec<String>) -> Vec<String> {
+    let mut filtered_logs: Vec<String> = logs.into_iter().filter(|s| !s.contains("Memoizing")).collect();
+    filtered_logs = filtered_logs.into_iter().filter(|s| !s.contains("enumerating")).collect();
+    filtered_logs = filtered_logs.into_iter().filter(|s| !s.contains("Evaluating")).collect();
+    filtered_logs = filtered_logs.into_iter().filter(|s| !s.contains("Building EUSS")).collect();
+    filtered_logs = filtered_logs.into_iter().filter(|s| !s.contains("Updating from")).collect();
+    return filtered_logs;
+}
+
+//TODO: Filter the logs & export them as well
 fn main() {
-    //list_files();
-    //let job_ID = get_input("Enter the deploy job ID.");
-    //println!("{}", job_ID);
     //let path = Path::new(TEST_LOG);
     let path = Path::new(SOFTWARE_MANAGEMENT_LOG);
     let lines = read_log_lines(path);
-    //let filtered = search_logs_for_deploy_job(lines, &job_ID.trim()); 
-    //println!("{}", filtered.len());
     let mut id_list: Vec<(usize, &JobType)> = Vec::new();
     let self_service_jobs = get_selfservice_install_ids(&lines, &mut id_list);
     let deploy_service_jobs = get_deploy_install_ids(&lines, &mut id_list);
-    //let self_service_id = get_input("Which Self Service Install would you like to see lines for?");
     println!("{}", "Self Service Jobs:");
     pretty_print_ids(self_service_jobs);
     println!("{}", "\nDeploy Jobs:");
     pretty_print_ids(deploy_service_jobs);
     let job_id = get_input("Enter the job ID you want to see logs for.");
-    search_logs_for_job_id(&lines, &job_id.trim(), &id_list);
+    let logs = search_logs_for_job_id(&lines, &job_id.trim(), &id_list);
+    let filtered_logs = filter_ss_logs(logs);
+    pretty_print_logs(filtered_logs);
 }
