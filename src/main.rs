@@ -6,6 +6,7 @@ use regex::Regex;
 const SOFTWARE_MANAGEMENT_LOG: &str = "C:/Program Files (x86)/Tanium/Tanium Client/Tools/SoftwareManagement/logs/software-management.log";
 //const TEST_LOG: &str = "C:/Program Files (x86)/Tanium/Tanium Client/Tools/SoftwareManagement/logs/software-management.log.1";
 
+#[derive(Clone, PartialEq)]
 enum JobType {
     SelfService,
     Deploy
@@ -36,7 +37,7 @@ fn read_log_lines(path: &Path) -> String {
     return lines
 }
 
-fn search_logs_for_job_id(lines: &String, id: &str, id_list: &Vec<(usize, &JobType)>)  -> Vec<String>{
+fn search_logs_for_job_id(lines: &String, id: &str, id_list: &Vec<(usize, &JobType)>)  -> (Vec<String>, JobType){
     let mut filtered_lines: Vec<String> = Vec::new();
     let mut job_type: &JobType = &JobType::SelfService;
     for i in id_list {
@@ -54,7 +55,8 @@ fn search_logs_for_job_id(lines: &String, id: &str, id_list: &Vec<(usize, &JobTy
             //println!("{}", line);
         }
     }
-    return filtered_lines;
+    let jtype = job_type.clone();
+    return (filtered_lines, jtype);
 }
 
 //TODO: Convert Deploy and SS ID lookup into single function
@@ -83,7 +85,6 @@ fn get_selfservice_install_ids(lines: &String, id_list: &mut Vec<(usize, &JobTyp
 fn get_deploy_install_ids(lines: &String, id_list: &mut Vec<(usize, &JobType)>) -> Vec<(usize, String)>{
     let mut set = HashSet::new();
     let mut ss_ids: Vec<(usize, String)> = Vec::new();
-    //let re = Regex::new(r"EUSS Deploy (\d+)\b").unwrap();
     let re = Regex::new(r"\[Deploy (\d+) \((.+?)\)\]").unwrap();
     let filtered_lines = lines.lines().filter(|x| x.contains("[Deploy")).collect::<Vec<&str>>();
     for line in filtered_lines {
@@ -113,13 +114,22 @@ fn pretty_print_logs(logs: Vec<String>){
     }
 }
 
-fn filter_ss_logs(logs: Vec<String>) -> Vec<String> {
-    let mut filtered_logs: Vec<String> = logs.into_iter().filter(|s| !s.contains("Memoizing")).collect();
-    filtered_logs = filtered_logs.into_iter().filter(|s| !s.contains("enumerating")).collect();
-    filtered_logs = filtered_logs.into_iter().filter(|s| !s.contains("Evaluating")).collect();
-    filtered_logs = filtered_logs.into_iter().filter(|s| !s.contains("Building EUSS")).collect();
-    filtered_logs = filtered_logs.into_iter().filter(|s| !s.contains("Updating from")).collect();
-    return filtered_logs;
+fn filter_logs(logs: (Vec<String>, JobType)) -> Vec<String> {
+    if logs.1 == JobType::SelfService {
+        let mut filtered_logs: Vec<String> = logs.0.into_iter().filter(|s| !s.contains("Memoizing")).collect();
+        filtered_logs = filtered_logs.into_iter().filter(|s| !s.contains("enumerating")).collect();
+        filtered_logs = filtered_logs.into_iter().filter(|s| !s.contains("Evaluating")).collect();
+        filtered_logs = filtered_logs.into_iter().filter(|s| !s.contains("Building EUSS")).collect();
+        filtered_logs = filtered_logs.into_iter().filter(|s| !s.contains("Updating from")).collect();
+        return filtered_logs;
+    } else {
+        let mut filtered_logs: Vec<String> = logs.0.into_iter().filter(|s| !s.contains("Building EUSS")).collect();
+        filtered_logs = filtered_logs.into_iter().filter(|s| !s.contains("Memoizing")).collect();
+        filtered_logs = filtered_logs.into_iter().filter(|s| !s.contains("enumerating")).collect();
+        filtered_logs = filtered_logs.into_iter().filter(|s| !s.contains("Updating from")).collect();
+        filtered_logs = filtered_logs.into_iter().filter(|s| !s.contains("Evaluating")).collect();
+        return filtered_logs;
+    }
 }
 
 //TODO: Filter the logs & export them as well
@@ -136,6 +146,6 @@ fn main() {
     pretty_print_ids(deploy_service_jobs);
     let job_id = get_input("Enter the job ID you want to see logs for.");
     let logs = search_logs_for_job_id(&lines, &job_id.trim(), &id_list);
-    let filtered_logs = filter_ss_logs(logs);
+    let filtered_logs = filter_logs(logs);
     pretty_print_logs(filtered_logs);
 }
