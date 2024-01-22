@@ -128,6 +128,7 @@ fn filter_logs(logs: (Vec<String>, JobType)) -> Vec<String> {
         filtered_logs = filtered_logs.into_iter().filter(|s| !s.contains("enumerating")).collect();
         filtered_logs = filtered_logs.into_iter().filter(|s| !s.contains("Updating from")).collect();
         filtered_logs = filtered_logs.into_iter().filter(|s| !s.contains("Evaluating")).collect();
+        filtered_logs = filtered_logs.into_iter().filter(|s| !s.contains("Skipping software")).collect();
         return filtered_logs;
     }
 }
