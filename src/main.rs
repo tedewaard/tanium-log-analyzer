@@ -149,4 +149,5 @@ fn main() {
     let logs = search_logs_for_job_id(&lines, &job_id.trim(), &id_list);
     let filtered_logs = filter_logs(logs);
     pretty_print_logs(filtered_logs);
+    let _wait = get_input("Hit enter to close out or");
 }
